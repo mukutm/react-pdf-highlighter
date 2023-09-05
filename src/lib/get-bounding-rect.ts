@@ -1,53 +1,62 @@
 import type { LTWHP } from "../types.js";
 
-const getBoundingRect = (clientRects: Array<LTWHP>): LTWHP => {
+const getBoundingRect = (clientRects: Array<LTWHP>): any => {
   const rects = Array.from(clientRects).map((rect) => {
     const { left, top, width, height, pageNumber } = rect;
 
-    const X0 = left;
-    const X1 = left + width;
+    const x1 = left;
+    const x2 = left + width;
 
-    const Y0 = top;
-    const Y1 = top + height;
+    const y1 = top;
+    const y2 = top + height;
 
-    return { X0, X1, Y0, Y1, pageNumber };
+
+    return { x1, x2, y1, y2, pageNumber}; // height and width need to be correct
   });
 
   let firstPageNumber = Number.MAX_SAFE_INTEGER;
 
   rects.forEach((rect) => {
+
     firstPageNumber = Math.min(
       firstPageNumber,
       rect.pageNumber ?? firstPageNumber
     );
   });
+  console.log('rects:', rects)
 
   const rectsWithSizeOnFirstPage = rects.filter(
     (rect) =>
-      (rect.X0 > 0 || rect.X1 > 0 || rect.Y0 > 0 || rect.Y1 > 0) &&
+      (rect.x1 > 0 || rect.x2 > 0 || rect.y1 > 0 || rect.y2 > 0) &&
       rect.pageNumber === firstPageNumber
   );
 
   const optimal = rectsWithSizeOnFirstPage.reduce((res, rect) => {
     return {
-      X0: Math.min(res.X0, rect.X0),
-      X1: Math.max(res.X1, rect.X1),
+      x1: Math.min(res.x1, rect.x1),
+      x2: Math.max(res.x2, rect.x2),
 
-      Y0: Math.min(res.Y0, rect.Y0),
-      Y1: Math.max(res.Y1, rect.Y1),
+      y1: Math.min(res.y1, rect.y1),
+      y2: Math.max(res.y2, rect.y2),
 
       pageNumber: firstPageNumber,
     };
   }, rectsWithSizeOnFirstPage[0]);
+  console.log(optimal)
+  const { x1, x2, y1, y2, pageNumber } = optimal;
 
-  const { X0, X1, Y0, Y1, pageNumber } = optimal;
 
   return {
-    left: X0,
-    top: Y0,
-    width: X1 - X0,
-    height: Y1 - Y0,
+    left: x1,
+    top: y1,
+    width: x2 - x1,
+    height: y2 - y1,
     pageNumber,
+    rects,
+    x1,
+    y1,
+    x2,
+    y2
   };
 };
 

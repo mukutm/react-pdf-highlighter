@@ -53,6 +53,7 @@ interface State<T_HT> {
   tipChildren: JSX.Element | null;
   isAreaSelectionInProgress: boolean;
   scrolledToHighlightId: string;
+  query: string;
 }
 
 interface Props<T_HT> {
@@ -80,6 +81,7 @@ interface Props<T_HT> {
     transformSelection: () => void
   ) => JSX.Element | null;
   enableAreaSelection: (event: MouseEvent) => boolean;
+  onHighlightCreated: (highlight:any) => void;
 }
 
 const EMPTY_ID = "empty-id";
@@ -101,6 +103,7 @@ export class PdfHighlighter<T_HT extends IHighlight> extends PureComponent<
     tip: null,
     tipPosition: null,
     tipChildren: null,
+    query: ''
   };
 
   eventBus = new EventBus();
@@ -489,18 +492,23 @@ export class PdfHighlighter<T_HT extends IHighlight> extends PureComponent<
     }
 
     const pages = getPagesFromRange(range);
+    console.log('PAGE: ', pages)
 
     if (!pages || pages.length === 0) {
       return;
     }
 
     const rects = getClientRects(range, pages);
+    console.log('RECTS: ', rects)
+
 
     if (rects.length === 0) {
       return;
     }
 
     const boundingRect = getBoundingRect(rects);
+    console.log('BOUNDING RECT: ', boundingRect)
+
 
     const viewportPosition: Position = {
       boundingRect,
@@ -547,11 +555,162 @@ export class PdfHighlighter<T_HT extends IHighlight> extends PureComponent<
 
   debouncedScaleValue: () => void = debounce(this.handleScaleValue, 500);
 
+  handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  this.setState({query: event.target.value});
+  };
+
+  getRangeForMatchedText = async (page, query, matchIndex) => {
+    const content = await page.getTextContent();
+    const textItems = content.items;
+
+    //console.log('textItems: ', textItems)
+
+    let startIndex = -1;
+
+    let endIndex = -1;
+    let textContent = "";
+
+    for (let i = 0; i < textItems.length; i++) {
+      textContent += " "+textItems[i].str;
+      //console.log(textContent)
+
+      if (startIndex === -1 && textContent.length > matchIndex) {
+        startIndex = i;
+        // console.log('TC:', textContent.length)
+        // console.log('Query length: ', query.length)
+        // console.log('Match index:', matchIndex)
+      }
+
+      if (textContent.length >= matchIndex + query.length) {
+        endIndex = i+1;
+        // console.log('i:', i)
+        // console.log('TC:', textContent.length)
+        // console.log('Query length: ', query.length)
+        // console.log('Match index:', matchIndex)
+        break;
+      }
+
+    }
+
+    if (startIndex === -1 || endIndex === -1) {
+      return null;
+    }
+
+    const startItem = textItems[startIndex];
+    console.log('start item', startItem)
+    const endItem = textItems[endIndex];
+    console.log('end item', endItem)
+
+
+    const ran = {
+      start: { // fix the offset calculations
+        index: startIndex,
+        offset: matchIndex - (textContent.length - startItem.str.length),
+      },
+      end: {
+        index: endIndex,
+        offset: (matchIndex + query.length) - (textContent.length - endItem.str.length),
+      }
+    };
+
+    let startRange;
+    let endRange;
+
+    for (const a of document.querySelectorAll("span")) {
+      if (a.textContent.includes(startItem.str)) {
+        startRange = a;
+
+      }
+      if (startRange && a.textContent.includes(endItem.str)) {
+        endRange = a;
+        break
+      }
+    }
+
+    // console.log('Startrange: ', startRange)
+    // console.log('Endrange', endRange)
+
+    let range = document.createRange();
+
+    console.log('start.offset:', ran.start.offset)
+    console.log('end.offset:', ran.end.offset)
+
+    range.setStart(startRange, 0);
+    range.setEnd(endRange, 0);
+
+    return range;
+  };
+
+  handleSearch = async () => {
+    console.log(this.state.query)
+    const numPages = this.props.pdfDocument.numPages;
+    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+      const page = await this.props.pdfDocument.getPage(pageNum);
+      const content = await page.getTextContent();
+      const textItems = content.items.map(item => item.str);
+      const fullPageText = textItems.join(' ');
+
+      //console.log('page: ', page)
+      //console.log('full page text: ',fullPageText)
+
+      const matchIndex = fullPageText.indexOf(this.state.query);
+      if (matchIndex !== -1) {
+        console.log(`Match found on page ${pageNum}:`, this.state.query);
+
+
+        const matchedText = fullPageText.substring(matchIndex, matchIndex + this.state.query.length);
+        //console.log(matchedText)
+        // Get range for the matched text:
+        const range = await this.getRangeForMatchedText(page, matchedText, matchIndex);
+        console.log(range)
+
+        // Get pages from the range:
+        const pages = getPagesFromRange(range);
+
+        // Get client rects for the range:
+        const rects = getClientRects(range, pages);
+
+        const boundingRect = getBoundingRect(rects)
+
+
+        const viewportPosition: Position = {
+          boundingRect,
+          rects,
+          pageNumber: pages[0].number,
+        };
+
+        const scaledPosition = this.viewportPositionToScaled(viewportPosition);
+        console.log(scaledPosition)
+
+
+        this.props.onHighlightCreated({
+          "content": {
+            "text": matchedText
+          },
+          "position": scaledPosition,
+          "comment": {
+            "text": "pending review",
+            "emoji": ""
+          }
+        })
+      }
+    }
+  };
+
   render() {
     const { onSelectionFinished, enableAreaSelection } = this.props;
 
     return (
       <div onPointerDown={this.onMouseDown}>
+        <div>
+          <input
+              type="text"
+              value={this.state.query}
+              onChange={this.handleInputChange}
+              placeholder="Search PDF..."
+          />
+          <button onClick={this.handleSearch}>Search</button>
+        </div>
         <div
           ref={this.containerNodeRef}
           className="PdfHighlighter"

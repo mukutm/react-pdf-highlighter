@@ -15,6 +15,8 @@ import { testHighlights as _testHighlights } from "./test-highlights";
 import { Spinner } from "./Spinner";
 import { Sidebar } from "./Sidebar";
 
+import {SearchComponent} from '../../src/components/SearchComponent';
+
 import "./style/App.css";
 
 const testHighlights: Record<string, Array<IHighlight>> = _testHighlights;
@@ -93,6 +95,11 @@ class App extends Component<{}, State> {
     );
   }
 
+  handleNewHighlight = (highlight) => {
+    this.addHighlight(highlight);
+    //hideTipAndSelection()
+  };
+
   getHighlightById(id: string) {
     const { highlights } = this.state;
 
@@ -101,7 +108,6 @@ class App extends Component<{}, State> {
 
   addHighlight(highlight: NewHighlight) {
     const { highlights } = this.state;
-
     console.log("Saving highlight", highlight);
 
     this.setState({
@@ -132,6 +138,9 @@ class App extends Component<{}, State> {
     });
   }
 
+
+
+
   render() {
     const { url, highlights } = this.state;
 
@@ -142,6 +151,7 @@ class App extends Component<{}, State> {
           resetHighlights={this.resetHighlights}
           toggleDocument={this.toggleDocument}
         />
+
         <div
           style={{
             height: "100vh",
@@ -149,7 +159,9 @@ class App extends Component<{}, State> {
             position: "relative",
           }}
         >
+
           <PdfLoader url={url} beforeLoad={<Spinner />}>
+
             {(pdfDocument) => (
               <PdfHighlighter
                 pdfDocument={pdfDocument}
@@ -176,6 +188,7 @@ class App extends Component<{}, State> {
                     }}
                   />
                 )}
+                
                 highlightTransform={(
                   highlight,
                   index,
@@ -222,7 +235,7 @@ class App extends Component<{}, State> {
                   );
                 }}
                 highlights={highlights}
-              />
+               onHighlightCreated={this.handleNewHighlight}/>
             )}
           </PdfLoader>
         </div>
