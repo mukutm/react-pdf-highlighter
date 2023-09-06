@@ -565,78 +565,114 @@ export class PdfHighlighter<T_HT extends IHighlight> extends PureComponent<
 
     //console.log('textItems: ', textItems)
 
-    let startIndex = -1;
+    let startIndex = 309;
 
-    let endIndex = -1;
-    let textContent = "";
+    let endIndex = 311;
+    //let textContent = "";
 
-    for (let i = 0; i < textItems.length; i++) {
-      textContent += " "+textItems[i].str;
-      //console.log(textContent)
-
-      if (startIndex === -1 && textContent.length > matchIndex) {
-        startIndex = i;
-        // console.log('TC:', textContent.length)
-        // console.log('Query length: ', query.length)
-        // console.log('Match index:', matchIndex)
-      }
-
-      if (textContent.length >= matchIndex + query.length) {
-        endIndex = i+1;
-        // console.log('i:', i)
-        // console.log('TC:', textContent.length)
-        // console.log('Query length: ', query.length)
-        // console.log('Match index:', matchIndex)
-        break;
-      }
-
-    }
 
     if (startIndex === -1 || endIndex === -1) {
       return null;
     }
 
-    const startItem = textItems[startIndex];
+    let startItem = textItems[startIndex];
+    let endItem = textItems[endIndex];
+
     console.log('start item', startItem)
-    const endItem = textItems[endIndex];
     console.log('end item', endItem)
 
+    //console.log(startItem.str)
+    // startItem != endItem
+    // !startItem && !endItem
 
-    const ran = {
-      start: { // fix the offset calculations
-        index: startIndex,
-        offset: matchIndex - (textContent.length - startItem.str.length),
-      },
-      end: {
-        index: endIndex,
-        offset: (matchIndex + query.length) - (textContent.length - endItem.str.length),
-      }
-    };
+    // if (startItem.str==""||startItem.str==" "){
+    //   console.log('startItem empty string')
+    //   while (startItem.str==''||startItem.str==" "){
+    //     startItem = textItems[startIndex--];
+    //     console.log("incermenting startiten:", startItem)
+    //   }
+    // }
+    //
+    // if (endItem.str==""||endItem.str==" "){
+    //   console.log('endItem empty string')
+    //   while (endItem.str==''||endItem.str==" "){
+    //     endItem = textItems[endIndex++];
+    //     console.log("incermenting enditem:", endItem)
+    //   }
+    // }
+
+
+
+    // const ran = {
+    //   start: { // fix the offset calculations
+    //     index: startIndex,
+    //     offset: matchIndex - (textContent.length - startItem.str.length),
+    //   },
+    //   end: {
+    //     index: endIndex,
+    //     offset: (matchIndex + query.length) - (textContent.length - endItem.str.length),
+    //   }
+    // };
 
     let startRange;
     let endRange;
 
     for (const a of document.querySelectorAll("span")) {
-      if (a.textContent.includes(startItem.str)) {
+      // console.log("a: ", a)
+      // console.log("a.textContent: ", a.textContent)
+      // console.log("startItem: ", startItem.str)
+      if (a.textContent!=''&&a.textContent.includes(startItem.str)) {
+
         startRange = a;
 
       }
-      if (startRange && a.textContent.includes(endItem.str)) {
+      if (a.textContent!=''&&a.textContent.includes(endItem.str)) {
         endRange = a;
-        break
+
       }
+
+
+      if (startRange && endRange){
+        break;
+      }
+
+    }
+    if(startRange==endRange){
+      console.log('will fail')
+      //do something
     }
 
-    // console.log('Startrange: ', startRange)
-    // console.log('Endrange', endRange)
+
+
+    console.log('Startrange: ', startRange)
+    console.log('Endrange', endRange)
 
     let range = document.createRange();
 
-    console.log('start.offset:', ran.start.offset)
-    console.log('end.offset:', ran.end.offset)
+    // console.log('start.offset:', ran.start.offset)
+    // console.log('end.offset:', ran.end.offset)
+
+    // if(!startRange && endRange){
+    //   range.setStart(endRange, 0);
+    //   range.setEnd(endRange, 0);
+    // }
+    // else if(startRange && !endRange){
+    //   range.setStart(startRange, 0);
+    //   range.setEnd(startRange, 0);
+    // }
+    //
+    // else if(startRange && endRange) {
+    //   range.setStart(startRange, 0);
+    //   range.setEnd(endRange, 0);
+    // }
+    //
+    // else{
+    //   console.log("range error")
+    //   return null;
+    // }
 
     range.setStart(startRange, 0);
-    range.setEnd(endRange, 0);
+    range.setEnd(endRange, 0)
 
     return range;
   };
@@ -661,15 +697,16 @@ export class PdfHighlighter<T_HT extends IHighlight> extends PureComponent<
         const matchedText = fullPageText.substring(matchIndex, matchIndex + this.state.query.length);
         //console.log(matchedText)
         // Get range for the matched text:
+
         const range = await this.getRangeForMatchedText(page, matchedText, matchIndex);
-        console.log(range)
+        console.log('Range:', range)
 
         // Get pages from the range:
         const pages = getPagesFromRange(range);
-
+        console.log(pages)
         // Get client rects for the range:
         const rects = getClientRects(range, pages);
-
+        console.log(rects)
         const boundingRect = getBoundingRect(rects)
 
 
